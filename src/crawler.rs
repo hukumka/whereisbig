@@ -1,9 +1,6 @@
-use std::os::windows::prelude::MetadataExt;
-use std::path::{Path, PathBuf};
+use std::fs::{read_dir, DirEntry};
 use std::io;
-use std::fs::{
-    read_dir, DirEntry,
-};
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Crawler {
@@ -18,20 +15,23 @@ pub struct DirTree {
     pub children: Vec<DirTree>,
 }
 
-
 impl Crawler {
     pub fn new(treshhold_bytes: u64) -> Self {
-        Self{treshhold_bytes}
+        Self { treshhold_bytes }
     }
 
     pub fn walk(&self, path: impl AsRef<Path>) -> io::Result<Vec<DirTree>> {
         let result = self.dir_entry(path)?;
-        let result = result.into_iter().filter(|file| file.size >= self.treshhold_bytes).collect();
+        let result = result
+            .into_iter()
+            .filter(|file| file.size >= self.treshhold_bytes)
+            .collect();
         Ok(result)
     }
 
     fn dir_entry(&self, path: impl AsRef<Path>) -> io::Result<Vec<DirTree>> {
-        let result = read_dir(&path)?.into_iter()
+        let result = read_dir(&path)?
+            .into_iter()
             .filter_map(|rentry| self.walk_entry(rentry).ok())
             .collect();
         Ok(result)
@@ -43,23 +43,23 @@ impl Crawler {
         if path.is_dir() {
             let children = self.dir_entry(&path)?;
             let size = children.iter().map(|c| c.size).sum();
-            let children = children.into_iter()
+            let children = children
+                .into_iter()
                 .filter(|file| file.size >= self.treshhold_bytes)
                 .collect();
-            Ok(DirTree{
+            Ok(DirTree {
                 is_dir: true,
                 path: path,
                 size,
                 children,
             })
         } else {
-            Ok(DirTree{
+            Ok(DirTree {
                 is_dir: false,
                 path: path,
-                size: entry.metadata()?.file_size(),
+                size: entry.metadata()?.len(),
                 children: vec![],
             })
         }
     }
-
 }
